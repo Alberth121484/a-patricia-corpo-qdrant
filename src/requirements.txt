@@ -1,0 +1,33 @@
+# A-Patricia Agent Dependencies
+
+# FastAPI and web server
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+
+# Slack integration
+slack-bolt==1.21.2
+slack-sdk==3.33.4
+aiohttp==3.11.11
+
+# Google Gemini (Vision AI)
+google-generativeai==0.8.3
+google-auth==2.36.0
+
+# Qdrant Vector Database
+qdrant-client==1.7.0
+
+# Embeddings (sentence-transformers)
+sentence-transformers==2.2.2
+torch==2.1.0
+
+# HTTP client
+httpx==0.28.1
+
+# Configuration management
+pydantic==2.10.3
+pydantic-settings==2.6.1
+python-dotenv==1.0.1
+
+# Utilities
+tenacity==9.0.0
+numpy==1.26.2

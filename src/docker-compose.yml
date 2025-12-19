@@ -1,0 +1,237 @@
+# A-Patricia Agent - Docker Compose Configuration
+# Compatible with Traefik and Portainer infrastructure
+# Architecture: Slack Bot + Qdrant (Vector DB) + MinIO (Storage) + Web Admin
+
+services:
+  # ===========================================
+  # QDRANT - Vector Database for semantic search
+  # ===========================================
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: a-patricia-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    networks:
+      - a-patricia-net
+    volumes:
+      - qdrant-data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ===========================================
+  # MINIO - Object Storage for files
+  # ===========================================
+  minio:
+    image: minio/minio:latest
+    container_name: a-patricia-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - a-patricia-net
+    volumes:
+      - minio-data:/data
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-patricia-admin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-patricia-secret-key-2024}
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ===========================================
+  # WEB ADMIN - File Management Interface
+  # ===========================================
+  web-admin:
+    build:
+      context: ./web-admin
+      dockerfile: Dockerfile
+    container_name: a-patricia-web-admin
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    networks:
+      - a-patricia-net
+    environment:
+      # JWT Configuration
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-super-secret-jwt-key-change-in-production}
+      - JWT_ALGORITHM=HS256
+      - JWT_EXPIRATION_HOURS=24
+      
+      # Encryption
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-your-32-byte-encryption-key-here}
+      
+      # MinIO Configuration
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-patricia-admin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-patricia-secret-key-2024}
+      - MINIO_BUCKET=patricia-files
+      - MINIO_SECURE=false
+      
+      # Qdrant Configuration
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - QDRANT_COLLECTION=products
+      
+      # Admin credentials
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      
+      # System
+      - TZ=America/Mexico_City
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.patricia-admin.rule=Host(`patricia-admin.tiendasnetows.com`)
+      - traefik.http.routers.patricia-admin.entrypoints=websecure
+      - traefik.http.routers.patricia-admin.tls.certresolver=letsencryptresolver
+      - traefik.http.services.patricia-admin.loadbalancer.server.port=3000
+
+  # ===========================================
+  # A-PATRICIA AGENT - Slack Bot
+  # ===========================================
+  a-patricia-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: a-patricia-agent
+    restart: unless-stopped
+    stop_grace_period: 30s
+    
+    expose:
+      - "8080"
+    
+    ports:
+      - "1405:8080"
+    
+    networks:
+      - a-patricia-net
+      - tiendasneto
+    
+    environment:
+      # ===========================================
+      # Slack Configuration (REQUIRED)
+      # ===========================================
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
+      - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
+      - SLACK_SOCKET_MODE=${SLACK_SOCKET_MODE:-true}
+      
+      # ===========================================
+      # Google/Gemini Configuration (REQUIRED)
+      # ===========================================
+      - GOOGLE_APPLICATION_CREDENTIALS_JSON=${GOOGLE_APPLICATION_CREDENTIALS_JSON}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      
+      # ===========================================
+      # Qdrant Configuration (Vector Database)
+      # ===========================================
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - QDRANT_COLLECTION=products
+      
+      # ===========================================
+      # Application Configuration
+      # ===========================================
+      - APP_NAME=A-Patricia
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PORT=8080
+      
+      # Price validation settings
+      - PRICE_TOLERANCE_PERCENT=${PRICE_TOLERANCE_PERCENT:-5.0}
+      - MAX_PRODUCTS_PER_IMAGE=${MAX_PRODUCTS_PER_IMAGE:-100}
+      - SEARCH_LIMIT=${SEARCH_LIMIT:-5}
+      - SIMILARITY_THRESHOLD=${SIMILARITY_THRESHOLD:-0.7}
+      
+      # Optional: Restrict to specific Slack users
+      - ALLOWED_USER_IDS=${ALLOWED_USER_IDS:-}
+      
+      # ===========================================
+      # System Configuration
+      # ===========================================
+      - TZ=America/Mexico_City
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+    
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.a-patricia.rule=Host(`a-patricia.tiendasnetows.com`)
+      - traefik.http.routers.a-patricia.entrypoints=websecure
+      - traefik.http.routers.a-patricia.priority=1
+      - traefik.http.routers.a-patricia.tls.certresolver=letsencryptresolver
+      - traefik.http.routers.a-patricia.service=a-patricia
+      - traefik.http.services.a-patricia.loadbalancer.server.port=8080
+      - traefik.http.services.a-patricia.loadbalancer.passHostHeader=1
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    volumes:
+      - a-patricia-logs:/app/logs
+
+# ===========================================
+# Networks
+# ===========================================
+networks:
+  a-patricia-net:
+    driver: bridge
+  tiendasneto:
+    external: true
+    name: tiendasneto
+
+# ===========================================
+# Volumes
+# ===========================================
+volumes:
+  a-patricia-logs:
+    driver: local
+  qdrant-data:
+    driver: local
+  minio-data:
+    driver: local

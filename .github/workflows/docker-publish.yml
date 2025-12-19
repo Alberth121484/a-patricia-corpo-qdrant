@@ -1,0 +1,164 @@
+# =============================================================================
+# A-Patricia Agent - Build and Publish Docker Images
+# =============================================================================
+# Este workflow construye y publica las imágenes Docker en GitHub Container Registry
+# cada vez que se hace push a la rama main.
+#
+# Imágenes resultantes:
+#   - ghcr.io/alberth121484/a-patricia:latest (Slack Bot Agent)
+#   - ghcr.io/alberth121484/a-patricia-admin:latest (Web Admin)
+# =============================================================================
+
+name: Build and Publish Docker Images
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:  # Permite ejecución manual desde GitHub
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # ============================================
+  # Job 1: Build A-Patricia Agent (Slack Bot)
+  # ============================================
+  build-agent:
+    name: Build & Push Agent
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata for Agent
+        id: meta-agent
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/a-patricia
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=
+            type=raw,value={{date 'YYYYMMDD-HHmmss'}}
+      
+      - name: Build and push Agent image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./src
+          file: ./src/Dockerfile
+          push: true
+          tags: ${{ steps.meta-agent.outputs.tags }}
+          labels: ${{ steps.meta-agent.outputs.labels }}
+          cache-from: type=gha,scope=agent
+          cache-to: type=gha,mode=max,scope=agent
+          platforms: linux/amd64
+      
+      - name: Agent build summary
+        run: |
+          echo "## 🤖 A-Patricia Agent Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.REGISTRY }}/${{ github.repository_owner }}/a-patricia\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta-agent.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================
+  # Job 2: Build Web Admin (React + FastAPI)
+  # ============================================
+  build-admin:
+    name: Build & Push Web Admin
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata for Web Admin
+        id: meta-admin
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/a-patricia-admin
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=
+            type=raw,value={{date 'YYYYMMDD-HHmmss'}}
+      
+      - name: Build and push Web Admin image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./src/web-admin
+          file: ./src/web-admin/Dockerfile
+          push: true
+          tags: ${{ steps.meta-admin.outputs.tags }}
+          labels: ${{ steps.meta-admin.outputs.labels }}
+          cache-from: type=gha,scope=admin
+          cache-to: type=gha,mode=max,scope=admin
+          platforms: linux/amd64
+      
+      - name: Web Admin build summary
+        run: |
+          echo "## 🖥️ Web Admin Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.REGISTRY }}/${{ github.repository_owner }}/a-patricia-admin\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta-admin.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================
+  # Job 3: Final Summary
+  # ============================================
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [build-agent, build-admin]
+    
+    steps:
+      - name: Final summary
+        run: |
+          echo "## ✅ All Images Published Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | URL |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| Agent (Slack Bot) | \`${{ env.REGISTRY }}/${{ github.repository_owner }}/a-patricia:latest\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Web Admin | \`${{ env.REGISTRY }}/${{ github.repository_owner }}/a-patricia-admin:latest\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Deploy with:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "cd src" >> $GITHUB_STEP_SUMMARY
+          echo "docker-compose -f docker-compose.prod.yml pull" >> $GITHUB_STEP_SUMMARY
+          echo "docker-compose -f docker-compose.prod.yml up -d" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
