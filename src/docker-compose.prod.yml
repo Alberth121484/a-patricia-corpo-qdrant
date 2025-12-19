@@ -83,7 +83,7 @@ services:
   # Web Admin - File Management UI
   # ============================================
   web-admin:
-    image: ghcr.io/alberth121484/a-patricia-admin:latest
+    image: ghcr.io/alberth121484/a-patricia-corpo-qdrant-admin:latest
     container_name: a-patricia-web-admin
     restart: unless-stopped
     
@@ -160,7 +160,7 @@ services:
   # A-Patricia Agent - Slack Bot
   # ============================================
   a-patricia-agent:
-    image: ghcr.io/alberth121484/a-patricia:latest
+    image: ghcr.io/alberth121484/a-patricia-corpo-qdrant:latest
     container_name: a-patricia-agent
     restart: unless-stopped
     stop_grace_period: 30s

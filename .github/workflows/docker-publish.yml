@@ -51,7 +51,7 @@ jobs:
         id: meta-agent
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/a-patricia
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
           tags: |
             type=raw,value=latest
             type=sha,prefix=
@@ -75,7 +75,7 @@ jobs:
         run: |
           echo "## 🤖 A-Patricia Agent Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** \`${{ env.REGISTRY }}/${{ github.repository_owner }}/a-patricia\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.REGISTRY }}/${{ github.repository }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
@@ -111,7 +111,7 @@ jobs:
         id: meta-admin
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/a-patricia-admin
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-admin
           tags: |
             type=raw,value=latest
             type=sha,prefix=
@@ -135,7 +135,7 @@ jobs:
         run: |
           echo "## 🖥️ Web Admin Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** \`${{ env.REGISTRY }}/${{ github.repository_owner }}/a-patricia-admin\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.REGISTRY }}/${{ github.repository }}-admin\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
@@ -157,8 +157,8 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Image | URL |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|-----|" >> $GITHUB_STEP_SUMMARY
-          echo "| Agent (Slack Bot) | \`${{ env.REGISTRY }}/${{ github.repository_owner }}/a-patricia:latest\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Web Admin | \`${{ env.REGISTRY }}/${{ github.repository_owner }}/a-patricia-admin:latest\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Agent (Slack Bot) | \`${{ env.REGISTRY }}/${{ github.repository }}:latest\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Web Admin | \`${{ env.REGISTRY }}/${{ github.repository }}-admin:latest\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🚀 Deploy with:" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
