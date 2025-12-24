@@ -2,6 +2,7 @@
 MinIO service for file storage
 """
 import logging
+import time
 from typing import BinaryIO, List, Optional
 from datetime import timedelta
 import io
@@ -17,17 +18,38 @@ logger = logging.getLogger(__name__)
 class MinIOService:
     """Service for file storage in MinIO"""
     
-    def __init__(self):
-        """Initialize MinIO client"""
-        self.client = Minio(
-            settings.MINIO_ENDPOINT,
-            access_key=settings.MINIO_ACCESS_KEY,
-            secret_key=settings.MINIO_SECRET_KEY,
-            secure=settings.MINIO_SECURE
-        )
+    def __init__(self, max_retries: int = 10, retry_delay: int = 3):
+        """
+        Initialize MinIO client with retry logic.
+        
+        Args:
+            max_retries: Maximum connection attempts
+            retry_delay: Seconds to wait between retries
+        """
         self.bucket = settings.MINIO_BUCKET
-        self._ensure_bucket()
-        logger.info(f"✅ MinIOService initialized (bucket={self.bucket})")
+        self.client = None
+        
+        # Retry connection to MinIO
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Connecting to MinIO at {settings.MINIO_ENDPOINT} (attempt {attempt + 1}/{max_retries})")
+                self.client = Minio(
+                    settings.MINIO_ENDPOINT,
+                    access_key=settings.MINIO_ACCESS_KEY,
+                    secret_key=settings.MINIO_SECRET_KEY,
+                    secure=settings.MINIO_SECURE
+                )
+                self._ensure_bucket()
+                logger.info(f"✅ MinIOService initialized (bucket={self.bucket})")
+                return
+            except Exception as e:
+                logger.warning(f"MinIO connection attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    logger.error(f"Failed to connect to MinIO after {max_retries} attempts")
+                    raise
     
     def _ensure_bucket(self):
         """Create bucket if it doesn't exist"""

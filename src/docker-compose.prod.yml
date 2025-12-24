@@ -8,12 +8,6 @@ services:
   # ============================================
   qdrant:
     image: qdrant/qdrant:latest
-    container_name: a-patricia-qdrant
-    restart: unless-stopped
-    
-    expose:
-      - "6333"
-      - "6334"
     
     networks:
       - a-patricia-net
@@ -25,6 +19,10 @@ services:
       - qdrant-data:/qdrant/storage
     
     deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
       resources:
         limits:
           cpus: "1"
@@ -45,13 +43,7 @@ services:
   # ============================================
   minio:
     image: minio/minio:latest
-    container_name: a-patricia-minio
-    restart: unless-stopped
     command: server /data --console-address ":9001"
-    
-    expose:
-      - "9000"
-      - "9001"
     
     networks:
       - a-patricia-net
@@ -64,6 +56,10 @@ services:
       - minio-data:/data
     
     deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
       resources:
         limits:
           cpus: "0.5"
@@ -84,18 +80,12 @@ services:
   # ============================================
   web-admin:
     image: ghcr.io/alberth121484/a-patricia-corpo-qdrant-admin:latest
-    container_name: a-patricia-web-admin
-    restart: unless-stopped
-    
-    expose:
-      - "3000"
     
     ports:
       - "3000:3000"
     
     networks:
       - a-patricia-net
-      - tiendasneto
     
     environment:
       # JWT Configuration
@@ -126,13 +116,11 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - TZ=America/Mexico_City
     
-    depends_on:
-      qdrant:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    
     deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 10
       resources:
         limits:
           cpus: "2"
@@ -161,19 +149,13 @@ services:
   # ============================================
   a-patricia-agent:
     image: ghcr.io/alberth121484/a-patricia-corpo-qdrant:latest
-    container_name: a-patricia-agent
-    restart: unless-stopped
     stop_grace_period: 30s
     
-    expose:
-      - "8080"
-    
     ports:
-      - "1405:8080"
+      - "1420:8080"
     
     networks:
       - a-patricia-net
-      - tiendasneto
     
     environment:
       # Slack Configuration
@@ -206,13 +188,13 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app
     
-    depends_on:
-      qdrant:
-        condition: service_healthy
-    
     deploy:
       mode: replicated
       replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 15s
+        max_attempts: 10
       placement:
         constraints:
           - node.role == manager
@@ -246,10 +228,8 @@ services:
 
 networks:
   a-patricia-net:
-    driver: bridge
-  tiendasneto:
-    external: true
-    name: tiendasneto
+    driver: overlay
+    attachable: true
 
 volumes:
   qdrant-data:

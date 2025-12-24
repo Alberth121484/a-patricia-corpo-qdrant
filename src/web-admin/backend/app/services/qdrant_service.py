@@ -3,6 +3,7 @@ Qdrant service for the Web Admin.
 Manages product indexing and deletion.
 """
 import logging
+import time
 from typing import List, Dict, Any, Optional
 
 from qdrant_client import QdrantClient
@@ -38,15 +39,35 @@ class QdrantAdminService:
     
     COLLECTION_NAME = "products"
     
-    def __init__(self):
-        """Initialize Qdrant client"""
-        self.client = QdrantClient(
-            host=settings.QDRANT_HOST,
-            port=settings.QDRANT_PORT,
-            timeout=60
-        )
-        self._ensure_collection()
-        logger.info(f"✅ QdrantAdminService initialized")
+    def __init__(self, max_retries: int = 10, retry_delay: int = 3):
+        """
+        Initialize Qdrant client with retry logic.
+        
+        Args:
+            max_retries: Maximum connection attempts
+            retry_delay: Seconds to wait between retries
+        """
+        self.client = None
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Connecting to Qdrant at {settings.QDRANT_HOST}:{settings.QDRANT_PORT} (attempt {attempt + 1}/{max_retries})")
+                self.client = QdrantClient(
+                    host=settings.QDRANT_HOST,
+                    port=settings.QDRANT_PORT,
+                    timeout=60
+                )
+                self._ensure_collection()
+                logger.info(f"✅ QdrantAdminService initialized")
+                return
+            except Exception as e:
+                logger.warning(f"Qdrant connection attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    logger.error(f"Failed to connect to Qdrant after {max_retries} attempts")
+                    raise
     
     def _ensure_collection(self):
         """Create collection if it doesn't exist"""
