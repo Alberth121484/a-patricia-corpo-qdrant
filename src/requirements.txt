@@ -17,8 +17,9 @@ google-auth==2.36.0
 qdrant-client==1.7.0
 
 # Embeddings (sentence-transformers)
-sentence-transformers==2.2.2
-torch==2.1.0
+sentence-transformers==2.6.1
+torch==2.2.0
+transformers==4.40.0
 
 # HTTP client
 httpx==0.28.1

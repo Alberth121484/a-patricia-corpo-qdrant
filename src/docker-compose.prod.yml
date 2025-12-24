@@ -228,8 +228,8 @@ services:
 
 networks:
   a-patricia-net:
-    driver: overlay
-    attachable: true
+    external: true
+    name: a-patricia-qdrant_a-patricia-net
 
 volumes:
   qdrant-data:
